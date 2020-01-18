@@ -4,8 +4,34 @@ from rest_framework import status
 import json
 import scholarly
 import io
+import requests
 
 import requests
+from io import StringIO
+
+
+from collections import Counter
+from collections import OrderedDict
+
+
+import urllib3
+import PyPDF2
+import textract
+from nltk.tokenize import word_tokenize
+from nltk.corpus import stopwords
+
+from urllib.request import urlopen
+
+
+import wordninja
+from urllib.request import urlopen
+
+
+from collections import Counter
+
+from nltk.tag import pos_tag
+
+
 class Object:
     def toJSON(self):
         return json.dumps(self, default=lambda o: o.__dict__, 
@@ -76,9 +102,124 @@ def title(request):
             "E-Print" : temp.bib["eprint"]
             }
             json_content.append(x)
-            
+        
     except:
         print("Something Went Wrong")
     return Response(json_content)
 
+
+@api_view(['GET'])
+def recommendation(request):
+    try:
+        temp = request.GET['data']
+        result = scholarly.search_keyword(temp)
+        my_list = []
+        for i in range(1,20):
+            temp= next(result)
+            for i in temp.interests:
+                my_list.append(i.lower())
+        counts = Counter(my_list)
+        recommendation = []
+        counter = 0
+        a1_sorted_keys = sorted(counts, key=counts.get, reverse=True)
+        for r in a1_sorted_keys:
+            if(counter<6):
+                print(r, counts[r])
+                recommendation.append(r)
+            else:
+                break
+            counter = counter+1
+        x = {"data" : recommendation}
+        return Response(x)
+
+
+    except:
+        print("Something went wrong")
+
+def main(temp):
+    download_file(temp)
+
+def download_file(download_url):
+    print("Download started")
+    response =urlopen(download_url)
+    file = open("dot.pdf", 'wb')
+    file.write(response.read())
+    file.close()
+    print("Completed")
+def extractPdfText(filePath=''):
+    
+    # Open the pdf file in read binary mode.
+    fileObject = open(filePath, 'rb')
+
+    # Create a pdf reader .
+    pdfFileReader = PyPDF2.PdfFileReader(fileObject)
+
+    # Get total pdf page number.
+    totalPageNumber = pdfFileReader.numPages
+
+    # Print pdf total page number.
+    print('This pdf file contains totally ' + str(totalPageNumber) + ' pages.')
+
+    currentPageNumber =0 
+    text = ''
+
+    # Loop in all the pdf pages.
+    while(currentPageNumber < totalPageNumber ):
+
+        # Get the specified pdf page object.
+        pdfPage = pdfFileReader.getPage(currentPageNumber)
+
+        # Get pdf page text.
+        text = text + pdfPage.extractText()
+
+        # Process next page.
+        currentPageNumber += 1
+
+    if(text == ''):
+        # If can not extract text then use ocr lib to extract the scanned pdf file.
+        text = textract.process(filePath, method='tesseract', encoding='utf-8')
+       
+    return text
+
+# This function will remove all stop words and punctuations in the text and return a list of keywords.
+def extractKeywords(text):
+    # Split the text words into tokens
+    wordTokens = word_tokenize(text)
+
+    # Remove blow punctuation in the list.
+    punctuations = ['(',')',';',':','[',']',',']
+
+    # Get all stop words in english.
+    stopWords = stopwords.words('english')
+
+    # Below list comprehension will return only keywords tha are not in stop words and  punctuations
+    keywords = [word for word in wordTokens if not word in stopWords and not word in punctuations]
+   
+    return keywords
+
+
+@api_view(['GET'])
+def keywords(request):
+    try:
+        temp = request.GET['data']
+        print("Got the data")
+        main(temp)
+        print("After Main")
+        pdfFilePath = 'dot.pdf'
+        pdfText = extractPdfText(pdfFilePath)
+        print('There are ' + str(pdfText.__len__()) + ' word in the pdf file.')
+        #print(pdfText)
+        keywords = extractKeywords(pdfText)
+        print('There are ' + str(keywords.__len__()) + ' keyword in the pdf file.')
+
+        
+
+
+        x = {
+            "data" : keywords
+        }
+        return Response(x)
+
+    except:
+        print("Something went wrong")
 
