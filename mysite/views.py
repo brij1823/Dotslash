@@ -142,10 +142,12 @@ def main(temp):
 def download_file(download_url):
     print("Download started")
     response =urlopen(download_url)
-    file = open("dot.pdf", 'wb')
+    file = open("my_dot.pdf", 'wb')
     file.write(response.read())
     file.close()
     print("Completed")
+
+global totalPageNumber
 def extractPdfText(filePath=''):
     
     # Open the pdf file in read binary mode.
@@ -201,22 +203,54 @@ def extractKeywords(text):
 @api_view(['GET'])
 def keywords(request):
     try:
-        temp = request.GET['data']
-        print("Got the data")
+        temp = request.GET["data"]
         main(temp)
         print("After Main")
-        pdfFilePath = 'dot.pdf'
+        pdfFilePath = 'my_dot.pdf'
         pdfText = extractPdfText(pdfFilePath)
         print('There are ' + str(pdfText.__len__()) + ' word in the pdf file.')
         #print(pdfText)
         keywords = extractKeywords(pdfText)
         print('There are ' + str(keywords.__len__()) + ' keyword in the pdf file.')
-
         
+        final_list = []
+        for i in keywords:
+            if(len(i) > 5):
+                final_list.append(i)
+                
+        final_str = ' '.join(final_list)
+        
+        analysis = wordninja.split(final_str)
+        print(len(analysis))
+        stop_words = set(stopwords.words('english')) 
 
-
+        for i in analysis:
+            if(len(i)<5 or (i in stop_words)):
+                analysis.remove(i)
+        print(len(analysis))
+        tagged_sent = pos_tag(analysis)
+        
+        propernouns = [word for word,pos in tagged_sent if pos == 'NNP']
+        
+        for i in propernouns:
+            if(len(i)<5):
+                propernouns.remove(i)
+        
+        counts = Counter(propernouns)
+        print(counts)
+        display = []
+        counter = 0
+        a1_sorted_keys = sorted(counts, key=counts.get, reverse=True)
+        for r in a1_sorted_keys:
+            if(counter<6):
+                print(r, counts[r])
+                display.append(r)
+            else:
+                break
+            counter = counter+1
         x = {
-            "data" : keywords
+            "data" : display,
+            "words" : str(pdfText.__len__())
         }
         return Response(x)
 

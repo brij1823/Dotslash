@@ -7,5 +7,5 @@ urlpatterns = [
     path('interests/',interests),
     path('title/',title),
     path('recommendation/',recommendation),
-    path('keywords',keywords),
+    path('keywords/',keywords),
 ]
