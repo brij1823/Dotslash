@@ -29,6 +29,7 @@ from urllib.request import urlopen
 
 from collections import Counter
 
+from difflib import SequenceMatcher
 from nltk.tag import pos_tag
 
 
@@ -89,6 +90,7 @@ def title(request):
         temp = request.GET["data"]
         result = scholarly.search_pubs_query(temp)
         json_content = []
+        flag = 0
         for i in range(1,10):
             temp = next(result)
             x = {
@@ -99,8 +101,9 @@ def title(request):
             "id_scholarcitedby" : temp.id_scholarcitedby,
             "source" : temp.source,
             "url_scholar" : temp.url_scholarbib,
-            "E-Print" : temp.bib["eprint"]
+            "EPrint" : temp.bib["eprint"]
             }
+            flag = 1
             json_content.append(x)
         
     except:
@@ -142,7 +145,7 @@ def main(temp):
 def download_file(download_url):
     print("Download started")
     response =urlopen(download_url)
-    file = open("my_dot.pdf", 'wb')
+    file = open("dot.pdf", 'wb')
     file.write(response.read())
     file.close()
     print("Completed")
@@ -199,6 +202,7 @@ def extractKeywords(text):
    
     return keywords
 
+analysis = []
 
 @api_view(['GET'])
 def keywords(request):
@@ -206,7 +210,7 @@ def keywords(request):
         temp = request.GET["data"]
         main(temp)
         print("After Main")
-        pdfFilePath = 'my_dot.pdf'
+        pdfFilePath = 'dot.pdf'
         pdfText = extractPdfText(pdfFilePath)
         print('There are ' + str(pdfText.__len__()) + ' word in the pdf file.')
         #print(pdfText)
@@ -242,7 +246,7 @@ def keywords(request):
         counter = 0
         a1_sorted_keys = sorted(counts, key=counts.get, reverse=True)
         for r in a1_sorted_keys:
-            if(counter<6):
+            if(counter<10):
                 print(r, counts[r])
                 display.append(r)
             else:
@@ -257,3 +261,53 @@ def keywords(request):
     except:
         print("Something went wrong")
 
+
+
+def similar(a, b):
+    return SequenceMatcher(None, a, b).ratio()
+    
+@api_view(['GET'])
+def similarwords(request):
+    temp = request.GET["data"]
+    
+    pdfFilePath = 'dot.pdf'
+   
+    pdfText = extractPdfText(pdfFilePath)
+    print('There are ' + str(pdfText.__len__()) + ' word in the pdf file.')
+    #print(pdfText)
+
+    keywords = extractKeywords(pdfText)
+    print('There are ' + str(keywords.__len__()) + ' keyword in the pdf file.')
+    
+    #print(keywords)    
+    
+    final_list = []
+    for i in keywords:
+        if(len(i) > 5):
+            final_list.append(i)
+            
+    final_str = ' '.join(final_list)
+    
+    analysis = wordninja.split(final_str)
+    print(len(analysis))
+    stop_words = set(stopwords.words('english')) 
+
+    for i in analysis:
+        if(len(i)<5 or (i in stop_words)):
+            analysis.remove(i)
+    
+    similar_words = []
+    for i in analysis:
+        if(similar(temp,i) > 0.5):
+            similar_words.append(i)
+    counts = Counter(similar_words)
+    print(counts)
+    print(similar_words)
+    similar_words = list(set(similar_words))
+   
+    x={
+        "data" : similar_words,
+        "counts" : counts   
+    }
+    return Response(x)
+    

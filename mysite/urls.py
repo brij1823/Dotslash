@@ -1,6 +1,6 @@
 from django.contrib import admin
 from django.urls import path
-from .views import author,interests,title,recommendation,keywords
+from .views import author,interests,title,recommendation,keywords,similarwords
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('author/',author),
@@ -8,4 +8,5 @@ urlpatterns = [
     path('title/',title),
     path('recommendation/',recommendation),
     path('keywords/',keywords),
+    path('similarwords/',similarwords),
 ]
